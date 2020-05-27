@@ -38,15 +38,41 @@ type DNS struct {
 	Options     []string `json:"options,omitempty"`
 }
 
+// DeviceInfo contains the information of the device associated
+// with this network (if any)
+type DeviceInfo struct {
+	Type  string       `json:"type,omitempty"`
+	Pci   *PciDevice   `json:"pci,omitempty"`
+	Vdpa  *VdpaDevice  `json:"vdpa,omitempty"`
+	Vhost *VhostDevice `json:"vhostuser,omitempty"`
+}
+
+type PciDevice struct {
+	Address   string `json:"address,omitempty"`
+	VhostPath string `json:"vhostpath,omitempty"`
+}
+
+type VdpaDevice struct {
+	Driver string `json:"driver,omitempty"`
+	Path   string `json:"path,omitempty"`
+}
+
+type VhostDevice struct {
+	Mode string `json:"mode,omitempty"`
+	Path string `json:"path,omitempty"`
+}
+
 // NetworkStatus is for network status annotation for pod
 // +k8s:deepcopy-gen=false
 type NetworkStatus struct {
-	Name      string   `json:"name"`
-	Interface string   `json:"interface,omitempty"`
-	IPs       []string `json:"ips,omitempty"`
-	Mac       string   `json:"mac,omitempty"`
-	Default   bool     `json:"default,omitempty"`
-	DNS       DNS      `json:"dns,omitempty"`
+	Name         string     `json:"name"`
+	Interface    string     `json:"interface,omitempty"`
+	IPs          []string   `json:"ips,omitempty"`
+	Mac          string     `json:"mac,omitempty"`
+	Default      bool       `json:"default,omitempty"`
+	DNS          DNS        `json:"dns,omitempty"`
+	ResourceName string     `json:"resourceName,omitempty"`
+	Device       DeviceInfo `json:"device,omitempty"`
 }
 
 // PortMapEntry for CNI PortMapEntry
