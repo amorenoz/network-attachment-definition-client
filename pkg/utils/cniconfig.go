@@ -18,9 +18,16 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/containernetworking/cni/libcni"
+	"io/ioutil"
+	"os"
 	"strings"
 
 	v1 "github.com/amorenoz/network-attachment-definition-client/pkg/apis/k8s.cni.cncf.io/v1"
+)
+
+const (
+	baseCNIDevInfoPath = "/var/run/cni.npwg.cncf.io/devinfo"
+	baseDPDevInfoPath  = "/var/run/dp.npwg.cncf.io/devinfo"
 )
 
 // GetCNIConfig (from annotation string to CNI JSON bytes)
@@ -116,4 +123,105 @@ func GetCNIConfigFromSpec(configData, netName string) ([]byte, error) {
 	}
 
 	return configBytes, nil
+}
+
+func loadDeviceInfoFromPath(subpaths ...string) (*v1.DeviceInfo, error) {
+	var devInfo v1.DeviceInfo
+
+	path := ""
+	for _, subpath := range subpaths {
+		path = fmt.Sprintf("%s/%s", path, subpath)
+		if _, err := os.Stat(path); err != nil {
+			return nil, nil
+		}
+	}
+	bytes, err := ioutil.ReadFile(path)
+	if err != nil {
+		return nil, err
+	}
+
+	err = json.Unmarshal(bytes, &devInfo)
+	if err != nil {
+		return nil, err
+	}
+
+	return &devInfo, nil
+}
+
+func saveDeviceInfoFromPath(devInfo *v1.DeviceInfo, subpaths ...string) error {
+	if devInfo == nil {
+		return fmt.Errorf("Device Information is null")
+	}
+	path := ""
+	for _, subpath := range subpaths[:len(subpaths)-1] {
+		path = fmt.Sprintf("%s/%s", path, subpath)
+	}
+
+	if err := os.MkdirAll(path, os.ModeDir); err != nil {
+		return err
+	}
+
+	path = fmt.Sprintf("%s/%s", path, subpaths[len(subpaths)-1])
+
+	if _, err := os.Stat(path); !os.IsNotExist(err) {
+		return fmt.Errorf("Device Information file already exists: %s", path)
+	}
+
+	devInfoJSON, err := json.Marshal(devInfo)
+	if err != nil {
+		return err
+	}
+
+	if err := ioutil.WriteFile(path, devInfoJSON, 0444); err != nil {
+		return err
+	}
+	return nil
+}
+
+// LoadDeviceInfoFromDP loads a DeviceInfo structure from created by a Device Plugin
+// Returns an error if the device information is malformed and (nil, nil) if it does not exist
+func LoadDeviceInfoFromDP(resourceName string, deviceID string) (*v1.DeviceInfo, error) {
+	return loadDeviceInfoFromPath(baseDPDevInfoPath, resourceName, deviceID, "device.json")
+}
+
+// LoadDeviceInfoFromCNI loads a DeviceInfo structure from created by a CNI
+// Returns an error if the device information is malformed and (nil, nil) if it does not exist
+func LoadDeviceInfoFromCNI(netName string, deviceID string) (*v1.DeviceInfo, error) {
+	return loadDeviceInfoFromPath(baseCNIDevInfoPath, netName, deviceID, "device.json")
+}
+
+// LoadDefaultDeviceInfoFromCNI loads a DeviceInfo structure from created by a CNI with a default ID
+// Returns an error if the device information is malformed and (nil, nil) if it does not exist
+func LoadDefaultDeviceInfoFromCNI(netName string) (*v1.DeviceInfo, error) {
+	return loadDeviceInfoFromPath(baseCNIDevInfoPath, netName, "default", "device.json")
+}
+
+// SaveCNIDeviceInfo saves a DeviceInfo structure created by a CNI
+func SaveCNIDeviceInfo(netName string, deviceID string, devInfo *v1.DeviceInfo) error {
+	return saveDeviceInfoFromPath(devInfo, baseCNIDevInfoPath, netName, deviceID, "device.json")
+}
+
+// SaveCNIDefaultDeviceInfo saves a DeviceInfo structure created by a CNI with a default ID
+func SaveCNIDefaultDeviceInfo(netName string, devInfo *v1.DeviceInfo) error {
+	return saveDeviceInfoFromPath(devInfo, baseCNIDevInfoPath, netName, "default", "device.json")
+}
+
+// SaveDPDeviceInfo saves a DeviceInfo structure created by a CNI
+func SaveDPDeviceInfo(resourceName string, deviceID string, devInfo *v1.DeviceInfo) error {
+	return saveDeviceInfoFromPath(devInfo, baseDPDevInfoPath, resourceName, deviceID, "device.json")
+}
+
+// CleanCNIDeviceInfo cleans the DeviceInfo created by a CNI
+// TODO: Sanitize inputs
+func CleanCNIDeviceInfo(name string, deviceID string) error {
+	path := fmt.Sprintf("%s/%s/%s", baseCNIDevInfoPath, name, deviceID)
+	if _, err := os.Stat(path); !os.IsNotExist(err) {
+		return os.RemoveAll(path)
+	}
+	return nil
+}
+
+// CleanDefaultCNIDeviceInfo cleans the default DeviceInfo created by a CNI
+func CleanDefaultCNIDeviceInfo(name string) error {
+	return CleanCNIDeviceInfo(name, "default")
 }
