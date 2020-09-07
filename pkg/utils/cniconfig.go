@@ -124,13 +124,9 @@ func GetCNIConfigFromSpec(configData, netName string) ([]byte, error) {
 	return configBytes, nil
 }
 
-func loadDeviceInfo(parts ...string) (*v1.DeviceInfo, error) {
+// LoadDeviceInfo loads a Device Information file
+func LoadDeviceInfo(filename string) (*v1.DeviceInfo, error) {
 	var devInfo v1.DeviceInfo
-
-	filename := ""
-	for _, part := range parts {
-		filename = fmt.Sprintf("%s-%s", filename, part)
-	}
 
 	path := fmt.Sprintf("%s/%s", baseDevInfoPath, filename)
 	bytes, err := ioutil.ReadFile(path)
@@ -146,12 +142,8 @@ func loadDeviceInfo(parts ...string) (*v1.DeviceInfo, error) {
 	return &devInfo, nil
 }
 
-func cleanDeviceInfo(parts ...string) error {
-	filename := ""
-	for _, part := range parts {
-		filename = fmt.Sprintf("%s-%s", filename, part)
-	}
-
+// CleanDeviceInfo removes a Device Information file
+func CleanDeviceInfo(filename string) error {
 	path := fmt.Sprintf("%s/%s", baseDevInfoPath, filename)
 	if _, err := os.Stat(path); !os.IsNotExist(err) {
 		return os.Remove(path)
@@ -159,7 +151,8 @@ func cleanDeviceInfo(parts ...string) error {
 	return nil
 }
 
-func saveDeviceInfo(devInfo *v1.DeviceInfo, parts ...string) error {
+// SaveDeviceInfo writes a Device Information file
+func SaveDeviceInfo(devInfo *v1.DeviceInfo, filename string) error {
 	if devInfo == nil {
 		return fmt.Errorf("Device Information is null")
 	}
@@ -168,11 +161,6 @@ func saveDeviceInfo(devInfo *v1.DeviceInfo, parts ...string) error {
 		if err := os.Mkdir(baseDevInfoPath, os.ModeDir); err != nil {
 			return err
 		}
-	}
-
-	filename := ""
-	for _, part := range parts {
-		filename = fmt.Sprintf("%s-%s", filename, part)
 	}
 
 	path := fmt.Sprintf("%s/%s", baseDevInfoPath, filename)
@@ -192,29 +180,18 @@ func saveDeviceInfo(devInfo *v1.DeviceInfo, parts ...string) error {
 	return nil
 }
 
+// GetDPDeviceInfoFile returns the standard Device Plugin DevInfo filename
+func GetDPDeviceInfoFile(resourceName string, deviceID string) string {
+	return fmt.Sprintf("dp-%s-%s-device.json", strings.ReplaceAll(resourceName, "/", "-"), deviceID)
+}
+
 // LoadDeviceInfoFromDP loads a DeviceInfo structure from created by a Device Plugin
 // Returns an error if the device information is malformed and (nil, nil) if it does not exist
 func LoadDeviceInfoFromDP(resourceName string, deviceID string) (*v1.DeviceInfo, error) {
-	return loadDeviceInfo("dp", resourceName, deviceID, "device.json")
-}
-
-// LoadDeviceInfoFromCNI loads a DeviceInfo structure from created by a CNI
-// Returns an error if the device information is malformed and (nil, nil) if it does not exist
-func LoadDeviceInfoFromCNI(netName string, deviceID string) (*v1.DeviceInfo, error) {
-	return loadDeviceInfo("cni", netName, deviceID, "device.json")
-}
-
-// SaveCNIDeviceInfo saves a DeviceInfo structure created by a CNI
-func SaveCNIDeviceInfo(netName string, deviceID string, devInfo *v1.DeviceInfo) error {
-	return saveDeviceInfo(devInfo, "cni", netName, deviceID, "device.json")
+	return LoadDeviceInfo(GetDPDeviceInfoFile(resourceName, deviceID))
 }
 
 // SaveDPDeviceInfo saves a DeviceInfo structure created by a CNI
 func SaveDPDeviceInfo(resourceName string, deviceID string, devInfo *v1.DeviceInfo) error {
-	return saveDeviceInfo(devInfo, "dp", resourceName, deviceID, "device.json")
-}
-
-// CleanCNIDeviceInfo cleans the DeviceInfo created by a CNI
-func CleanCNIDeviceInfo(name string, deviceID string) error {
-	return cleanDeviceInfo("cni", name, deviceID, "device.json")
+	return SaveDeviceInfo(devInfo, GetDPDeviceInfoFile(resourceName, deviceID))
 }
