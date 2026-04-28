@@ -82,8 +82,9 @@ const (
 )
 
 type VhostDevice struct {
-	Mode string `json:"mode,omitempty"`
-	Path string `json:"path,omitempty"`
+	Mode     string `json:"mode,omitempty"`
+	Path     string `json:"path,omitempty"`
+	HostPath string `json:"host-path,omitempty"`
 }
 
 const (
